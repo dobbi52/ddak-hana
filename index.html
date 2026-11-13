@@ -261,6 +261,24 @@ button.sym:active img{transform:scale(1.1)}
 .prmodes button.on img{opacity:1;transform:scale(1.12)}
 .prmodes button.on img{animation:bossIdle 1.6s ease-in-out infinite}
 .big-title{font-size:clamp(34px,5vw,60px);color:var(--yellow);text-align:center;text-shadow:4px 4px 0 #7A3E00}
+/* ===== 라운드 전환 ===== */
+.gcard-frame.exit{animation:cardExit .5s cubic-bezier(.55,0,.8,.2) forwards!important}
+@keyframes cardExit{0%{transform:none;opacity:1}25%{transform:translateX(4%) rotate(2deg)}100%{transform:translateX(-130%) rotate(-16deg);opacity:0}}
+.roundfx{position:fixed;inset:0;z-index:44;background:rgba(11,15,26,.5);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;pointer-events:none;animation:roundOut 1.05s linear forwards}
+.roundfx::before{content:'';position:absolute;left:0;right:0;top:50%;height:clamp(110px,22vh,220px);transform:translateY(-50%) skewY(-3deg);background:var(--rc);opacity:.16;animation:band .35s ease-out both}
+.roundfx b{position:relative;font-family:var(--pix);font-weight:normal;font-size:clamp(34px,7.5vw,92px);color:var(--rc);text-shadow:5px 5px 0 #2b2140;animation:roundIn .5s cubic-bezier(.34,1.56,.64,1) both}
+.roundfx span{position:relative;font-size:clamp(22px,3.2vw,38px);color:#fff;text-shadow:3px 3px 0 #2b2140;animation:riseIn .35s .12s both}
+@keyframes roundIn{0%{transform:scale(2.6) rotate(-6deg);opacity:0}100%{transform:rotate(-2deg);opacity:1}}
+@keyframes roundOut{0%,82%{opacity:1}100%{opacity:0}}
+.rdots{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;max-width:460px}
+.rdots i{width:14px;height:14px;border:3px solid var(--line2)}
+.rdots i.done{background:var(--green);border-color:var(--green)}
+.rdots i.cur{border-color:var(--yellow);animation:dotPulse 1s ease-in-out infinite}
+.rdots i.cur.done{background:var(--green);border-color:var(--green);animation:popIn .45s cubic-bezier(.34,1.56,.64,1)}
+@keyframes dotPulse{50%{background:rgba(255,225,77,.45);transform:scale(1.2)}}
+@media (max-width:1100px){.rdots{display:none}}
+.tbar.next i{background:var(--blue)}
+.timer-big.next{color:var(--blue);font-size:44px}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;animation-delay:0s!important;transition-duration:.01ms!important}}
 .sq{position:fixed;width:12px;height:12px;top:-14px;z-index:50;pointer-events:none;animation:fall 2.4s steps(24) forwards}
 @keyframes fall{to{transform:translateY(112vh)}}
@@ -784,6 +802,7 @@ const Snd = {
     const t0 = this.ctx.currentTime;
     notes.forEach((m, i) => { const o = this.ctx.createOscillator(), g = this.ctx.createGain(); o.type = type; o.frequency.value = 440 * Math.pow(2, (m - 69) / 12); const t = t0 + i * gap; g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + gap * 1.5); o.connect(g); g.connect(this.ctx.destination); o.start(t); o.stop(t + gap * 1.6); });
   },
+  whoosh(){ this.play([79, 72, 64], 0.04, 'triangle', 0.06); }, round(){ this.play([67, 79], 0.09, 'square', 0.05); },
   hit(){ this.play([43, 38], 0.05, 'square', 0.07); }, ko(){ this.play([64, 60, 55, 50, 45, 40], 0.08, 'sawtooth', 0.05); }, enter(){ this.play([40, 43, 47, 52], 0.09, 'square', 0.05); }, event(){ this.play([67, 71, 74, 79, 74, 79, 83], 0.07); },
   good(){ this.play([76, 79, 84], 0.07); }, bad(){ this.play([48, 44], 0.13, 'sawtooth', 0.04); },
   tick(){ this.play([84], 0.05, 'square', 0.03); }, start(){ this.play([72, 76, 79, 84], 0.08); }, reveal(){ this.play([67, 72], 0.08, 'triangle', 0.08); }, end(){ this.play([72, 76, 79, 84, 79, 84, 88], 0.11); }
@@ -977,8 +996,8 @@ function makeQR(){
   if (typeof QRCode === 'undefined') { el.innerHTML = '<span style="color:#333;font-size:16px">QR을 불러오지 못했어요.<br>코드를 입력해 주세요.</span>'; return; }
   el.innerHTML = ''; new QRCode(el, { text: joinURL(), width: 180, height: 180, correctLevel: QRCode.CorrectLevel.M });
 }
-function topbarHTML(extra = ''){
-  return `<div class="topbar">${logoHTML()}<div class="chips">${extra}<div class="chip code">ROOM <b>${esc(S.code)}</b></div>${muteBtn()}</div></div>`;
+function topbarHTML(extra = '', mid = ''){
+  return `<div class="topbar">${logoHTML()}${mid}<div class="chips">${extra}<div class="chip code">ROOM <b>${esc(S.code)}</b></div>${muteBtn()}</div></div>`;
 }
 function hostHTML(s, deal){
   if (s.phase === 'lobby') return hostLobbyHTML();
@@ -988,7 +1007,7 @@ function hostHTML(s, deal){
   const boss = s.mode === 'boss';
   const pre = !!s.ev && s.phase === 'play' && B.now() < (s.startAt || 0);
   const evChip = s.ev ? `<div class="chip ev" style="--ec:${EVENTS[s.ev].color}">${EVENTS[s.ev].name}</div>` : '';
-  return `<div class="board">${topbarHTML(`${evChip}<div class="chip round">ROUND ${s.round}/${s.rounds}</div>`)}
+  return `<div class="board">${topbarHTML(`${evChip}<div class="chip round">ROUND ${s.round}/${s.rounds}</div>`, dotsHTML(s))}
     <div class="b-main">
       <div class="b-left">${cardHTML(card, s.seed + '|b|' + s.round, { deal: deal && !pre, wait: pre, frame: 'g', ev: s.ev })}</div>
       <div class="b-right">
@@ -1114,6 +1133,7 @@ function updateDynamic(){
       return;
     }
     if (s.phase === 'play' || s.phase === 'reveal') {
+      if (s.phase === 'reveal') { const cd = $('.rdots i.cur'); if (cd && !cd.classList.contains('done')) cd.classList.add('done'); }
       const order = answerOrder();
       const c = $('#bCount'); if (c) { const v = String(s.phase === 'reveal' ? (s.found || 0) : order.length); if (c.textContent !== v) { c.textContent = v; if (v !== '0') restart(c, 'bump'); } }
       const tot = $('#bTotal'); if (tot) tot.textContent = onlinePlayers().length;
@@ -1149,6 +1169,22 @@ function updateDynamic(){
     else setMsg(msg, `노랗게 빛나는 그림이었어요${sub}`, 'info');
   }
 }
+/* 정답 공개 마지막 1초: 카드가 날아가고 다음 라운드 글씨가 찍힘 */
+const TRANS_MS = 1000, PR_TRANS = 700;
+function roundTransition(next, total, finish){
+  document.querySelectorAll('.gcard-frame').forEach(f => { f.classList.remove('deal', 'win', 'miss'); f.classList.add('exit'); });
+  const lk = $('#lock'); if (lk) lk.classList.add('hidden');
+  if (REDUCED) return;
+  const d = document.createElement('div');
+  d.className = 'roundfx';
+  const last = !finish && next === total;
+  d.style.setProperty('--rc', finish ? '#39FF88' : last ? '#FF4FA3' : '#FFE14D');
+  d.innerHTML = finish ? '<b>FINISH!</b><span>수고했어요!</span>' : last ? `<b>FINAL ROUND</b><span>마지막 판!</span>` : `<b>ROUND ${next}</b><span>${next} / ${total}</span>`;
+  document.body.appendChild(d);
+  setTimeout(() => d.remove(), 1100);
+  Snd.whoosh(); setTimeout(() => Snd.round(), 160);
+}
+function dotsHTML(s){ return `<div class="rdots" aria-hidden="true">${Array.from({ length: s.rounds }, (_, i) => `<i class="${i + 1 < s.round ? 'done' : i + 1 === s.round ? 'cur' : ''}"></i>`).join('')}</div>`; }
 function evTick(startAt, now){
   const evb = $('#evBanner');
   if (evb && now >= startAt) {
@@ -1166,14 +1202,26 @@ function frame(){
   const cn = $('#countNum');
   if (cn && s.phase === 'ready') { const v = Math.max(1, Math.ceil((s.endsAt - now) / 1000)); if (cn.textContent !== String(v)) { cn.textContent = v; Snd.tick(); restart(cn, 'pop-in'); } }
   evTick(s.phase === 'play' ? (s.startAt || 0) : 0, now);
+  const rev = s.phase === 'reveal';
+  if (rev && now >= s.endsAt - TRANS_MS && S.transRound !== s.round) {
+    S.transRound = s.round;
+    const finish = s.round >= s.rounds || (s.mode === 'boss' && (s.dmg || 0) >= hpTotal(s.hp));
+    roundTransition(s.round + 1, s.rounds, finish);
+  }
   const bar = $('#tbar');
   if (bar) {
-    const ratio = s.phase === 'play' ? Math.max(0, Math.min(1, (s.endsAt - now) / (s.sec * 1000))) : 0;
+    const ratio = s.phase === 'play' ? Math.max(0, Math.min(1, (s.endsAt - now) / (s.sec * 1000)))
+      : rev ? Math.max(0, Math.min(1, (s.endsAt - TRANS_MS - now) / (REVEAL_MS - TRANS_MS))) : 0;
     bar.style.transform = `scaleX(${ratio})`;
-    const w = $('#tbarW'); if (w) w.classList.toggle('warn', ratio < 0.3);
+    const w = $('#tbarW'); if (w) { w.classList.toggle('warn', !rev && ratio < 0.3); w.classList.toggle('next', rev); }
   }
   const bt = $('#bTime');
-  if (bt) { const left = s.phase === 'play' ? Math.max(0, Math.min(s.sec, Math.ceil((s.endsAt - now) / 1000))) : 0; if (bt.textContent !== String(left)) bt.textContent = left; bt.classList.toggle('warn', left <= 3); }
+  if (bt) {
+    const left = s.phase === 'play' ? Math.max(0, Math.min(s.sec, Math.ceil((s.endsAt - now) / 1000))) : 0;
+    const txt = rev ? 'NEXT' : String(left);
+    if (bt.textContent !== txt) bt.textContent = txt;
+    bt.classList.toggle('warn', !rev && left <= 3); bt.classList.toggle('next', rev);
+  }
   if (S.role === 'player') {
     const lock = $('#lock');
     if (lock) {
@@ -1250,7 +1298,7 @@ function practicePick(sym, el){
   const P = S.practice; if (!P || P.stage !== 'play' || Date.now() < P.lockUntil || Date.now() < P.startAt) return;
   if (sym === P.ans) {
     const ms = Date.now() - P.startAt, g = practicePoints(ms) * mult(P.ev);
-    P.score += g; P.found++; P.totalMs += ms; P.stage = 'wait'; P.wait = Date.now() + 1100;
+    P.score += g; P.found++; P.totalMs += ms; P.stage = 'wait'; P.wait = Date.now() + 1100 + PR_TRANS; P.waitFrom = Date.now();
     Snd.good();
     const mine = markIcon(P.ans, 'ok', true);
     plusFx(mine, '+' + g);
@@ -1258,8 +1306,8 @@ function practicePick(sym, el){
     if (P.mode === 'boss') {
       P.dmg += g;
       BossUI.update(P.hp, P.dmg, [{ d: g, crit: P.ev === 'gold', me: true }]);
-      if (P.dmg >= hpTotal(P.hp)) { P.round = PR_ROUNDS; P.wait = Date.now() + 2600; }
-      else if (bossAt(P.hp, P.dmg).i > bossAt(P.hp, P.dmg - g).i) P.wait = Date.now() + 1900;
+      if (P.dmg >= hpTotal(P.hp)) { P.round = PR_ROUNDS; P.wait = Date.now() + 2400 + PR_TRANS; }
+      else if (bossAt(P.hp, P.dmg).i > bossAt(P.hp, P.dmg - g).i) P.wait = Date.now() + 1900 + PR_TRANS;
       setMsg($('#pmsg'), `보스에게 ${g} 공격! ${(ms / 1000).toFixed(1)}초`, 'good');
     } else setMsg($('#pmsg'), `+${g}점! ${(ms / 1000).toFixed(1)}초`, 'good');
   } else {
@@ -1281,14 +1329,20 @@ function practiceFrame(){
     const lock = $('#lock');
     if (lock) { const rem = P.lockUntil - now, on = rem > 0; lock.classList.toggle('hidden', !on); if (on) { const v = Math.ceil(rem / 1000); const el = $('#lockN'); if (el.textContent !== String(v)) el.textContent = v; } else if (lock._was) setMsg($('#pmsg'), '', 'info'); lock._was = on; }
     if (now >= P.endsAt) {
-      P.stage = 'wait'; P.wait = now + 1400;
+      P.stage = 'wait'; P.wait = now + 1400 + PR_TRANS; P.waitFrom = now;
       Snd.reveal();
         markIcon(P.ans, 'ans', false);
       const lk = $('#lock'); if (lk) lk.classList.add('hidden');
       setMsg($('#pmsg'), '시간 끝! 노랗게 빛나는 그림이었어요', 'info');
       const b = $('#tbar'); if (b) b.style.transform = 'scaleX(0)';
     }
-  } else if (P.stage === 'wait' && now >= P.wait) practiceNext();
+  } else if (P.stage === 'wait') {
+    if (now >= P.wait - PR_TRANS && P.transRound !== P.round) { P.transRound = P.round; roundTransition(P.round + 1, PR_ROUNDS, P.round >= PR_ROUNDS); }
+    const bar = $('#tbar'), w = $('#tbarW');
+    if (bar) { const from = P.waitFrom || (P.wait - 1500); bar.style.transform = `scaleX(${Math.max(0, Math.min(1, (P.wait - PR_TRANS - now) / Math.max(1, P.wait - PR_TRANS - from)))})`; }
+    if (w) { w.classList.remove('warn'); w.classList.add('next'); }
+    if (now >= P.wait) practiceNext();
+  }
 }
 function practiceEnd(){
   const P = S.practice; P.stage = 'end';
